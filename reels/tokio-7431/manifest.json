@@ -1,0 +1,189 @@
+{
+  "schemaVersion": "0.1.0",
+  "id": "tokio-7431",
+  "version": 1,
+  "title": "Stealing tasks from the LIFO slot",
+  "recipe": "pr",
+  "kicker": "PR #7431 · Walkthrough",
+  "createdAt": "2026-10-25T01:27:23.546Z",
+  "source": {
+    "provider": "github",
+    "repository": "tokio-rs/tokio",
+    "prNumber": 7431,
+    "baseSha": "1fc450aefba4b05cdff9b7825ca5e39cccb3780e",
+    "headSha": "5db9e75144032911b8051432e6ac3a833a099c52",
+    "url": "https://github.com/tokio-rs/tokio/pull/7431",
+    "visibility": "public"
+  },
+  "documents": [
+    {
+      "url": "https://github.com/tokio-rs/tokio/pull/7431",
+      "title": "runtime: steal tasks from the LIFO slot (#7431)",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "b622bac5dcb5f9fd62624ee844fa43709d153e1ad8ec74f7b30aec01f77f8be1"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/1220253963180950d861b9bb6d1d44de90d8742f",
+      "title": "runtime: Make multithreaded rt LIFO slot atomic",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "f15a6a13d62dc27608ed944525e6ad60570ee505225a8e8c8e9bf01e9b9f8eff"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/75d8116de8b0280340312da97aa0447c88b27b3b",
+      "title": "runtime: start moving LIFO into the run queue",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "8c171befe6fb8de1f0128f561ce5e0c76732ff7924e581d058f5c69b6e255105"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/730a58114fc28c782fbdd99fe52b3b4ecd12187b",
+      "title": "runtime: actually steal LIFO task (stupid version)",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "b49b340e8a1e5dd577d83c60839fc94e662668b90b8edd12dac17cb066eaf2da"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/a5a656da197dc7f9fda0a98157e204087bef82d1",
+      "title": "Merge branch 'master' into eliza/lifo-steal",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "3993f2f22c94e0af24d0392d0e652faa98964ef99c2c14795996c1cc2132b8aa"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/4c680aeaf55387fc723d6d17c845b14cebf8b46e",
+      "title": "runtime: docs fixes",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "8da388582b709c377d70f2aaa648f07f95d58302a42011721892b8d5c2c845c1"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/9ad2404a1345d497b07b647faedbd879d453fda2",
+      "title": "runtime: add loom tests with lifo slot",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "36fa495ddad64516bf4241ac7da6d85101fa0202f914bbcc1754c2f795061809"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/fe53128bdd075f580b07e0f9265dc46009406975",
+      "title": "runtime: add test for #4941",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "7936eeac799b72f7a210162ab2cc82e382da4935f263575374c3a1f030711823"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/86b16c467a8137d86144f6b29906d5250a51ca6d",
+      "title": "runtime: fix remote queue depth for metrics",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "82d5a3c5dde86b7eb95659e8881e96095dea37b98068803941a890a154261f25"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/9651b826befade16556c7f607e40daa9101caebe",
+      "title": "Merge branch 'master' into eliza/lifo-steal",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "ec8ef89291575f228c233b20bea0c4e410e115db8d10f8f02208755bd9687bb2"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/0497b31032e18bb29a5f709f653e3323be1bcfb2",
+      "title": "runtime: fix lifo loom tests not popping from their own lifo slots",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "77af31c4c6a14005e33fa270c033996f85c233da38242e6e1dcda823e9c2c653"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/cb27dda702eadb61d56a148036257eca266c30c2",
+      "title": "runtime: fix wrong accounting for LIFO slot in new queue len",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "6d587661eb738337ba7c0460b573b8f3de21df958714ebc4dd771c20eca00284"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/3022aaece22654b0cd979682ebcdaee3e48e2586",
+      "title": "runtime: fix racy `worker_local_queue_depth` test",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "800be7f9c63205b2f3f3e41b916b0d631a2f23b1e5a57d86127cf504c44f9d4a"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/eba7e1d51ecf6158ba1206199523fee5df1333e0",
+      "title": "Update queue.rs",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "5ef7360907f9c821a6c4db98eacc999dd4909c4ffcabfb25fcab2f3a4abf2a0c"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/f5d5766eda58ab3d800592ab4314474df7d60e7f",
+      "title": "unbreak return types after applying @mkeeter's suggestion",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "bf297d85e9d3d60e0f11d5adca2e355dc45c35af09ac138e0ce83bbe455cca67"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/adf146f2fec6dff680cd8ed03d8a0cf06da80960",
+      "title": "match on LIFO push result",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "fc08fc985f4752fa8c59f47631b5bf79148f349678d6c6bd8a17e8daeee53c99"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/0889f08f27ee6f92582d6b4ad4cd10b1d4ae51a1",
+      "title": "more comments explaining the `lifo_stealable` test",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "0f97cb36d82601045f40796b8612fdff37ab216df00efa1ad72492a7649cd217"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/aff05a99f6b5587a500679ac3a08c609aa4f96a6",
+      "title": "get rid of `should_notify`",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "354aa43eab5112233915a68c12e5904f2e4db7901f7d6d826ed463f6027833e8"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/1baf3b17053c51c65f177a9af96ef7b75d4d524f",
+      "title": "Merge branch 'master' into eliza/lifo-steal",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "a1d996807907b1ecba6f1c7a3935a721739876fbec5a31089df02116ded966e3"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/56cbf5d4da39de311de6dd50e102953062148f8c",
+      "title": "Merge branch 'master' into eliza/lifo-steal",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "58b24265853420d69d2cd3929d0ed7740eba141bab809280bf7ee15339ddbaf4"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/3a6043d7adadf7103cb459efeb9cc7039306ffac",
+      "title": "im gonna be really mad if this fixes it on arm",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "22cb42f73d10c2b9b64d4ab4d95b2ec5d3eac0ab764a34a983e981d4a6da3db8"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/c47b9c87f91303c2494fd5d6778084e57576c679",
+      "title": "only steal from LIFO if no tasks were stolen from queue",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "f8197afa93dfe11e8a908bb9ffa547fc3ba5313183c31f19e5720b9d3006dc14"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/0dbd003a108c0060898990d09332a48f8f53d884",
+      "title": "also assert the LIFO slot is non-empty when dropping",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "32be355e5db16a125d3864ae3827c7d292c3b56cabc4639ea2fbb1f810a868b6"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/8cd3ee14f6b755617907507c6450fd67094f06ff",
+      "title": "Merge branch 'master' into eliza/lifo-steal",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "e3583c4e60f1240522bc0a85363673d84bca1162ac21eab05148501ed040f8b7"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/800baaa0dd46eaed8a212d084c6f5b916a8327fb",
+      "title": "Update tokio/tests/rt_threaded.rs",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "3beed80de9194fb1798117494101197934abf23f77002b2a17066d75875919d2"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/2e8e812dc4f20634d6c16b6624b25fe5a2631ca9",
+      "title": "update documentation",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "328f9dfadc53891e10d4f1bb4d847f11b0cbe7fc651e63a5fd65a968e71395de"
+    },
+    {
+      "url": "https://github.com/tokio-rs/tokio/commit/5db9e75144032911b8051432e6ac3a833a099c52",
+      "title": "Merge branch 'master' into eliza/lifo-steal",
+      "retrievedAt": "2026-10-25T01:27:25.625Z",
+      "sha256": "2056b5ee3e31847fe4870b34e55883ab6e5d94340960502d62f5d1764f4be833"
+    }
+  ],
+  "collaboration": {
+    "adapter": "github-discussions",
+    "repository": "voidforall/mutoscope-demo",
+    "category": "Q&A",
+    "categorySlug": "q-a"
+  },
+  "publicUrl": "https://voidforall.github.io/mutoscope-demo/reels/tokio-7431/"
+}

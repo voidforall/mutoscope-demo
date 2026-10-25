@@ -1,0 +1,1345 @@
+{
+  "scenes": [
+    {
+      "id": "before",
+      "title": "Before: a task in the LIFO slot could not be stolen",
+      "kicker": "Before",
+      "durationMs": 22000,
+      "narration": "Each worker kept its last-notified task in a private lifo_slot. Idle workers could steal from the run queue but never from that slot, so if the notifier blocked, the notified task was stranded.",
+      "cues": [
+        {
+          "atMs": 0,
+          "text": "Worker A keeps a LIFO slot for the task it notified last, so that task runs next."
+        },
+        {
+          "atMs": 4000,
+          "text": "The slot is a plain Option field on worker A's Core. Only worker A can read or write it."
+        },
+        {
+          "atMs": 8000,
+          "text": "A blocker task notifies a victim, which lands in the slot, then blocks without yielding."
+        },
+        {
+          "atMs": 12000,
+          "text": "Idle worker B steals from A's run queue: half its tasks, via the shared queue::Inner."
+        },
+        {
+          "atMs": 16000,
+          "text": "But the slot is invisible to B. If A's queue is empty, steal_into returns None and the victim waits."
+        }
+      ],
+      "entities": [
+        {
+          "id": "blocker",
+          "explanation": "Any task that notifies another task and then keeps the worker thread busy (CPU-bound work, a blocking call) without returning to the scheduler.",
+          "sourceRefs": [
+            {
+              "kind": "url",
+              "url": "https://github.com/tokio-rs/tokio/pull/7431",
+              "quote": "if a task notifies another task and then goes CPU bound for a long period of time without yielding"
+            }
+          ],
+          "tone": "warning",
+          "type": "component",
+          "label": "Blocker task",
+          "sublabel": "never yields",
+          "layout": {
+            "col": 1,
+            "row": 2,
+            "colSpan": 2,
+            "rowSpan": 1
+          }
+        },
+        {
+          "id": "lifo-slot",
+          "explanation": "Before this PR the LIFO slot was a plain field on worker::Core. Only the thread holding the Core could touch it, so it never took part in work-stealing.",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/worker.rs",
+              "startLine": 115,
+              "endLine": 120,
+              "revision": "base"
+            }
+          ],
+          "tone": "removed",
+          "type": "component",
+          "label": "lifo_slot",
+          "sublabel": "Option<Notified>",
+          "layout": {
+            "col": 5,
+            "row": 2,
+            "colSpan": 3,
+            "rowSpan": 1
+          }
+        },
+        {
+          "id": "core-group",
+          "explanation": "worker::Core is owned by exactly one thread at a time; other workers never look inside it.",
+          "sourceRefs": [],
+          "tone": "neutral",
+          "type": "group",
+          "label": "Worker A · Core (private)",
+          "children": [
+            "lifo-slot"
+          ]
+        },
+        {
+          "id": "run-queue",
+          "explanation": "The fixed-size local run queue. Its Inner is shared through an Arc: the owner pushes and pops through Local, other workers steal half of it through Steal.",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+              "startLine": 50,
+              "endLine": 60,
+              "revision": "base"
+            }
+          ],
+          "tone": "neutral",
+          "type": "component",
+          "label": "Run queue",
+          "sublabel": "head · tail · buffer[256]",
+          "layout": {
+            "col": 9,
+            "row": 2,
+            "colSpan": 3,
+            "rowSpan": 1
+          }
+        },
+        {
+          "id": "queue-group",
+          "explanation": "State reachable from both the owning worker (Local) and every stealer (Steal).",
+          "sourceRefs": [],
+          "tone": "neutral",
+          "type": "group",
+          "label": "queue::Inner (shared)",
+          "children": [
+            "run-queue"
+          ]
+        },
+        {
+          "id": "worker-b",
+          "explanation": "A searching worker. steal_work() walks the other workers' Steal handles and calls steal_into on each.",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/worker.rs",
+              "startLine": 1090,
+              "endLine": 1118,
+              "revision": "base"
+            }
+          ],
+          "tone": "neutral",
+          "type": "component",
+          "label": "Worker B",
+          "sublabel": "idle · steal_work()",
+          "layout": {
+            "col": 5,
+            "row": 5,
+            "colSpan": 3,
+            "rowSpan": 1
+          }
+        },
+        {
+          "id": "e-notify",
+          "sourceRefs": [],
+          "tone": "neutral",
+          "type": "edge",
+          "from": "blocker",
+          "to": "lifo-slot",
+          "label": "notify",
+          "style": "solid",
+          "arrow": "end"
+        },
+        {
+          "id": "e-steal-queue",
+          "sourceRefs": [],
+          "tone": "neutral",
+          "type": "edge",
+          "from": "worker-b",
+          "to": "run-queue",
+          "label": "steal_into",
+          "style": "solid",
+          "arrow": "end"
+        },
+        {
+          "id": "e-no-lifo",
+          "sourceRefs": [],
+          "tone": "removed",
+          "type": "edge",
+          "from": "worker-b",
+          "to": "lifo-slot",
+          "label": "no access",
+          "style": "dashed",
+          "arrow": "end"
+        },
+        {
+          "id": "quote-pathology",
+          "sourceRefs": [
+            {
+              "kind": "url",
+              "url": "https://github.com/tokio-rs/tokio/pull/7431",
+              "quote": "if a task notifies another task and then goes CPU bound for a long period of time without yielding, the notified task will never be able to execute until the task that notified it can yield"
+            }
+          ],
+          "tone": "neutral",
+          "type": "quote",
+          "text": "if a task notifies another task and then goes CPU bound for a long period of time without yielding, the notified task will never be able to execute until the task that notified it can yield",
+          "attribution": "@hawkw, PR description (issue #4941)",
+          "layout": {
+            "col": 1,
+            "row": 7,
+            "colSpan": 7,
+            "rowSpan": 2
+          }
+        },
+        {
+          "id": "base-steal",
+          "explanation": "At the base commit, a stealer that finds an empty queue gives up. The LIFO slot is not consulted.",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+              "startLine": 432,
+              "endLine": 435,
+              "revision": "base"
+            }
+          ],
+          "tone": "neutral",
+          "type": "code-block",
+          "label": "queue.rs · Steal::steal_into (base)",
+          "language": "rust",
+          "code": "if n == 0 {\n    // No tasks were stolen\n    return None;\n}",
+          "startLine": 432,
+          "highlightLines": [
+            434
+          ],
+          "lineNumbers": true,
+          "layout": {
+            "col": 8,
+            "row": 7,
+            "colSpan": 5,
+            "rowSpan": 2
+          }
+        }
+      ],
+      "timeline": [
+        {
+          "action": "appear",
+          "atMs": 0,
+          "target": "run-queue"
+        },
+        {
+          "action": "appear",
+          "atMs": 500,
+          "target": "lifo-slot"
+        },
+        {
+          "action": "highlight",
+          "atMs": 4000,
+          "target": "lifo-slot"
+        },
+        {
+          "action": "appear",
+          "atMs": 8000,
+          "target": "blocker"
+        },
+        {
+          "action": "connect",
+          "atMs": 8600,
+          "target": "e-notify"
+        },
+        {
+          "action": "appear",
+          "atMs": 12000,
+          "target": "worker-b"
+        },
+        {
+          "action": "connect",
+          "atMs": 12600,
+          "target": "e-steal-queue"
+        },
+        {
+          "action": "connect",
+          "atMs": 16000,
+          "target": "e-no-lifo"
+        },
+        {
+          "action": "appear",
+          "atMs": 16200,
+          "target": "base-steal"
+        },
+        {
+          "action": "appear",
+          "atMs": 17000,
+          "target": "quote-pathology"
+        }
+      ],
+      "claims": [
+        {
+          "text": "At the base commit the LIFO slot is an Option<Notified> field of worker::Core.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/worker.rs",
+              "startLine": 115,
+              "endLine": 120,
+              "revision": "base"
+            }
+          ]
+        },
+        {
+          "text": "Steal::steal_into returned None when no queue tasks were stolen.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+              "startLine": 430,
+              "endLine": 435,
+              "revision": "base"
+            }
+          ]
+        },
+        {
+          "text": "The runtime docs stated that other workers cannot steal the task in the lifo slot.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/mod.rs",
+              "startLine": 369,
+              "endLine": 371,
+              "revision": "base"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "slot-moves",
+      "title": "The change: the slot moves into the shared queue",
+      "kicker": "The change",
+      "durationMs": 22000,
+      "narration": "The PR deletes lifo_slot from Core and adds an AtomicNotified field to the queue's shared Inner. The worker now pushes and pops it through the queue, and the cell swaps a raw task pointer atomically.",
+      "cues": [
+        {
+          "atMs": 0,
+          "text": "Start from the same picture: the slot lives in worker A's private Core."
+        },
+        {
+          "atMs": 3000,
+          "text": "The PR deletes Core::lifo_slot and adds lifo: AtomicNotified to queue::Inner."
+        },
+        {
+          "atMs": 7000,
+          "text": "Now Local and Steal both reach it. The worker calls push_lifo and pop_lifo instead of a field."
+        },
+        {
+          "atMs": 13000,
+          "text": "AtomicNotified is an AtomicPtr to the task header. Every access is one atomic swap, with SeqCst ordering."
+        },
+        {
+          "atMs": 18000,
+          "text": "When to use the slot (lifo_enabled, the 3-poll cap) stays in the worker, as before."
+        }
+      ],
+      "entities": [
+        {
+          "id": "worker-core",
+          "explanation": "The worker keeps the policy: lifo_enabled, the MAX_LIFO_POLLS_PER_TICK cap and the coop-budget check. It now reaches the slot through run_queue.push_lifo / pop_lifo.",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/worker.rs",
+              "startLine": 110,
+              "endLine": 120,
+              "revision": "head"
+            },
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/worker.rs",
+              "startLine": 664,
+              "endLine": 704,
+              "revision": "head"
+            }
+          ],
+          "tone": "muted",
+          "type": "component",
+          "label": "Worker A",
+          "sublabel": "lifo_enabled",
+          "layout": {
+            "col": 1,
+            "row": 2,
+            "colSpan": 2,
+            "rowSpan": 1
+          }
+        },
+        {
+          "id": "lifo-slot",
+          "explanation": "The old private field, deleted by this PR.",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/worker.rs",
+              "startLine": 115,
+              "endLine": 120,
+              "revision": "base"
+            }
+          ],
+          "tone": "removed",
+          "type": "component",
+          "label": "lifo_slot",
+          "sublabel": "Option<Notified>",
+          "layout": {
+            "col": 5,
+            "row": 2,
+            "colSpan": 3,
+            "rowSpan": 1
+          }
+        },
+        {
+          "id": "core-group",
+          "sourceRefs": [],
+          "tone": "neutral",
+          "type": "group",
+          "label": "Worker A · Core (private)",
+          "children": [
+            "lifo-slot"
+          ]
+        },
+        {
+          "id": "lifo-atomic",
+          "explanation": "The LIFO slot is now a field of queue::Inner, so every Steal handle can take from it. It is an AtomicNotified: a nullable task pointer swapped atomically.",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+              "startLine": 55,
+              "endLine": 60,
+              "revision": "head"
+            }
+          ],
+          "tone": "added",
+          "type": "component",
+          "label": "lifo",
+          "sublabel": "AtomicNotified<T>",
+          "layout": {
+            "col": 5,
+            "row": 2,
+            "colSpan": 3,
+            "rowSpan": 1
+          }
+        },
+        {
+          "id": "run-queue",
+          "explanation": "Unchanged ring buffer; it now sits next to the LIFO slot in the same shared Inner.",
+          "sourceRefs": [],
+          "tone": "neutral",
+          "type": "component",
+          "label": "Run queue",
+          "sublabel": "head · tail · buffer[256]",
+          "layout": {
+            "col": 9,
+            "row": 2,
+            "colSpan": 3,
+            "rowSpan": 1
+          }
+        },
+        {
+          "id": "queue-group",
+          "sourceRefs": [],
+          "tone": "neutral",
+          "type": "group",
+          "label": "queue::Inner (shared)",
+          "children": [
+            "lifo-atomic",
+            "run-queue"
+          ]
+        },
+        {
+          "id": "code-push-pop",
+          "explanation": "The worker-facing API. schedule_local calls push_lifo and re-queues any displaced task; next_local_task and the run loop call pop_lifo.",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+              "startLine": 401,
+              "endLine": 412,
+              "revision": "head"
+            }
+          ],
+          "tone": "neutral",
+          "type": "code-block",
+          "label": "queue.rs · Local::push_lifo / pop_lifo",
+          "language": "rust",
+          "code": "/// Pushes a task to the LIFO slot, returning the task previously in the\n/// LIFO slot (if there was one).\npub(crate) fn push_lifo(&self, task: task::Notified<T>) -> Option<task::Notified<T>> {\n    self.inner.lifo.swap(Some(task))\n}\n\n/// Pops the task currently held in the LIFO slot, if there is one;\n/// otherwise, returns `None`.\npub(crate) fn pop_lifo(&self) -> Option<task::Notified<T>> {\n    // LIFO-suction!\n    self.inner.lifo.take()\n}",
+          "startLine": 401,
+          "highlightLines": [
+            404,
+            411
+          ],
+          "lineNumbers": true,
+          "layout": {
+            "col": 1,
+            "row": 4,
+            "colSpan": 12,
+            "rowSpan": 5
+          }
+        },
+        {
+          "id": "code-swap",
+          "explanation": "One atomic swap moves ownership of the task reference in or out of the cell, so the owner and a stealer can never both get the same task. PhantomData<S> remembers the scheduler type erased by the raw pointer.",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/task/atomic_notified.rs",
+              "startLine": 28,
+              "endLine": 39,
+              "revision": "head"
+            }
+          ],
+          "tone": "neutral",
+          "type": "code-block",
+          "label": "task/atomic_notified.rs · AtomicNotified::swap",
+          "language": "rust",
+          "code": "pub(crate) fn swap(&self, task: Option<Notified<S>>) -> Option<Notified<S>> {\n    let new = task\n        .map(|t| t.into_raw().header_ptr().as_ptr())\n        .unwrap_or_else(ptr::null_mut);\n    let old = self.task.swap(new, SeqCst);\n    NonNull::new(old).map(|ptr| unsafe {\n        // Safety: since we only allow tasks with the same scheduler type to\n        // be placed in this cell, we know that the pointed task's scheduler\n        // type matches the type parameter S.\n        Notified::from_raw(RawTask::from_raw(ptr))\n    })\n}",
+          "startLine": 28,
+          "highlightLines": [
+            32
+          ],
+          "lineNumbers": true,
+          "layout": {
+            "col": 1,
+            "row": 4,
+            "colSpan": 12,
+            "rowSpan": 5
+          }
+        },
+        {
+          "id": "e-push-pop",
+          "sourceRefs": [],
+          "tone": "neutral",
+          "type": "edge",
+          "from": "worker-core",
+          "to": "lifo-atomic",
+          "label": "push / pop",
+          "style": "solid",
+          "arrow": "end"
+        }
+      ],
+      "timeline": [
+        {
+          "action": "disappear",
+          "atMs": 3000,
+          "target": "core-group"
+        },
+        {
+          "action": "disappear",
+          "atMs": 3000,
+          "target": "lifo-slot"
+        },
+        {
+          "action": "appear",
+          "atMs": 3500,
+          "target": "lifo-atomic"
+        },
+        {
+          "action": "appear",
+          "atMs": 7000,
+          "target": "code-push-pop"
+        },
+        {
+          "action": "highlight",
+          "atMs": 7600,
+          "target": "lifo-atomic"
+        },
+        {
+          "action": "replace",
+          "atMs": 13000,
+          "target": "code-push-pop",
+          "with": "code-swap"
+        },
+        {
+          "action": "restore",
+          "atMs": 18000,
+          "target": "lifo-atomic"
+        },
+        {
+          "action": "appear",
+          "atMs": 18000,
+          "target": "worker-core"
+        },
+        {
+          "action": "connect",
+          "atMs": 18500,
+          "target": "e-push-pop"
+        }
+      ],
+      "claims": [
+        {
+          "text": "queue::Inner gains a lifo: task::AtomicNotified<T> field and worker::Core loses lifo_slot.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+              "startLine": 55,
+              "endLine": 60,
+              "revision": "head"
+            },
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/worker.rs",
+              "startLine": 110,
+              "endLine": 120,
+              "revision": "head"
+            }
+          ]
+        },
+        {
+          "text": "push_lifo and pop_lifo are thin wrappers over AtomicNotified::swap and take.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+              "startLine": 401,
+              "endLine": 412,
+              "revision": "head"
+            }
+          ]
+        },
+        {
+          "text": "AtomicNotified swaps an AtomicPtr<Header> with SeqCst ordering.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/task/atomic_notified.rs",
+              "startLine": 28,
+              "endLine": 39,
+              "revision": "head"
+            }
+          ]
+        },
+        {
+          "text": "The LIFO policy (lifo_enabled and the per-tick poll cap) stays in the worker.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/worker.rs",
+              "startLine": 690,
+              "endLine": 704,
+              "revision": "head"
+            },
+            {
+              "kind": "url",
+              "url": "https://github.com/tokio-rs/tokio/pull/7431",
+              "quote": "I opted *not* to move any of this code into the run queue itself, as it depends on other bits of internal worker state."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "steal-fallback",
+      "title": "Stealers take the LIFO task only when the queue yields nothing",
+      "kicker": "The change",
+      "durationMs": 20000,
+      "narration": "steal_into still steals half the queue first. Only when that steals nothing does it take the victim's LIFO task and run it. Review moved the PR to this simpler rule.",
+      "cues": [
+        {
+          "atMs": 0,
+          "text": "steal_into still steals half of the target's run queue first."
+        },
+        {
+          "atMs": 4000,
+          "text": "New: if that stole nothing, take the target's LIFO task, count it as a steal, and return it to run."
+        },
+        {
+          "atMs": 9000,
+          "text": "The PR description planned to grab the LIFO task on every steal. Review (commit c47b9c8) narrowed it to this fallback."
+        },
+        {
+          "atMs": 14000,
+          "text": "So a busy worker keeps its LIFO task until stealers have drained its queue, roughly log(n) steals."
+        }
+      ],
+      "entities": [
+        {
+          "id": "diff-steal",
+          "explanation": "n is the number of tasks steal_into2 moved from the target's queue. It is also 0 when another stealer is mid-steal on the same queue, so in that race the LIFO task can be taken even though the queue is not empty.",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+              "startLine": 430,
+              "endLine": 435,
+              "revision": "base"
+            },
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+              "startLine": 453,
+              "endLine": 464,
+              "revision": "head"
+            }
+          ],
+          "tone": "neutral",
+          "type": "diff-panel",
+          "label": "queue.rs · Steal::steal_into",
+          "language": "rust",
+          "before": "let mut n = self.steal_into2(dst, dst_tail);\n\nif n == 0 {\n    // No tasks were stolen\n    return None;\n}",
+          "after": "let mut n = self.steal_into2(dst, dst_tail);\n\nif n == 0 {\n    …\n    let lifo = self.0.lifo.take();\n    if lifo.is_some() {\n        dst_stats.incr_steal_count(1);\n        dst_stats.incr_steal_operations();\n    }\n    return lifo;\n}",
+          "layout": {
+            "col": 1,
+            "row": 1,
+            "colSpan": 12,
+            "rowSpan": 5
+          }
+        },
+        {
+          "id": "quote-logn",
+          "sourceRefs": [
+            {
+              "kind": "url",
+              "url": "https://github.com/tokio-rs/tokio/pull/7431#discussion_r2943062320",
+              "quote": "A task with n pending tasks will have to get stolen from log(n) times before the lifo slot is taken"
+            }
+          ],
+          "tone": "neutral",
+          "type": "quote",
+          "text": "A task with n pending tasks will have to get stolen from log(n) times before the lifo slot is taken",
+          "attribution": "@Darksonn, review thread",
+          "layout": {
+            "col": 2,
+            "row": 7,
+            "colSpan": 10,
+            "rowSpan": 2
+          }
+        }
+      ],
+      "timeline": [
+        {
+          "action": "appear",
+          "atMs": 0,
+          "target": "diff-steal"
+        },
+        {
+          "action": "highlight",
+          "atMs": 4000,
+          "target": "diff-steal"
+        },
+        {
+          "action": "restore",
+          "atMs": 9000,
+          "target": "diff-steal"
+        },
+        {
+          "action": "appear",
+          "atMs": 14000,
+          "target": "quote-logn"
+        }
+      ],
+      "claims": [
+        {
+          "text": "steal_into takes the target's LIFO task only when steal_into2 stole zero tasks.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+              "startLine": 453,
+              "endLine": 464,
+              "revision": "head"
+            }
+          ]
+        },
+        {
+          "text": "steal_into2 returns 0 both for an empty queue and when another stealer is in progress.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+              "startLine": 500,
+              "endLine": 513,
+              "revision": "head"
+            }
+          ]
+        },
+        {
+          "text": "The fallback-only rule was suggested in review and adopted in commit c47b9c8, replacing the description's always-steal design.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "url",
+              "url": "https://github.com/tokio-rs/tokio/pull/7431#discussion_r2931365812",
+              "quote": "No tasks were stolen, try the LIFO slot."
+            },
+            {
+              "kind": "url",
+              "url": "https://github.com/tokio-rs/tokio/commit/c47b9c87f91303c2494fd5d6778084e57576c679",
+              "quote": "it also makes the LIFO slot less likely to be stolen from, increasing the likelihood that it will be next polled on the same thread it was woken from"
+            }
+          ]
+        },
+        {
+          "text": "Keeping the LIFO task local unless the queue is drained should preserve its locality benefit in the common case.",
+          "basis": "inference",
+          "refs": []
+        }
+      ]
+    },
+    {
+      "id": "rescue",
+      "title": "After: the #4941 scenario now resolves",
+      "kicker": "After",
+      "durationMs": 22000,
+      "narration": "Replay the new lifo_stealable test. The blocker notifies the victim into A's slot and blocks. Worker B finds A's queue empty, takes the LIFO task instead, and the victim runs.",
+      "cues": [
+        {
+          "atMs": 0,
+          "text": "The new test lifo_stealable builds the exact #4941 scenario on a 4-worker runtime."
+        },
+        {
+          "atMs": 3000,
+          "text": "1. The blocker notifies the victim, which goes into worker A's LIFO slot. A is then blocked on a std channel."
+        },
+        {
+          "atMs": 8000,
+          "text": "2. Worker B, kept awake by a timer churn task, tries A's run queue. Nothing to steal: n == 0."
+        },
+        {
+          "atMs": 12500,
+          "text": "3. So steal_into takes the task from A's LIFO slot instead."
+        },
+        {
+          "atMs": 16500,
+          "text": "4. Worker B polls the victim. The test fails if this takes more than 30 seconds."
+        }
+      ],
+      "entities": [
+        {
+          "id": "blocker",
+          "explanation": "Sends on notify_tx (waking the victim) and then blocks worker A's thread on a std mpsc channel, so A never returns to its run loop.",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/tests/rt_threaded.rs",
+              "startLine": 762,
+              "endLine": 777,
+              "revision": "head"
+            }
+          ],
+          "tone": "warning",
+          "type": "component",
+          "label": "Blocker task",
+          "sublabel": "blocks on recv()",
+          "layout": {
+            "col": 1,
+            "row": 2,
+            "colSpan": 2,
+            "rowSpan": 1
+          }
+        },
+        {
+          "id": "lifo-atomic",
+          "explanation": "Worker A's LIFO slot, now inside the shared queue::Inner.",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+              "startLine": 55,
+              "endLine": 60,
+              "revision": "head"
+            }
+          ],
+          "tone": "added",
+          "type": "component",
+          "label": "lifo",
+          "sublabel": "AtomicNotified<T>",
+          "layout": {
+            "col": 5,
+            "row": 2,
+            "colSpan": 3,
+            "rowSpan": 1
+          }
+        },
+        {
+          "id": "run-queue",
+          "explanation": "Worker A's run queue. In the test it holds nothing stealable, so steal_into2 returns 0.",
+          "sourceRefs": [],
+          "tone": "muted",
+          "type": "component",
+          "label": "Run queue",
+          "sublabel": "empty",
+          "layout": {
+            "col": 9,
+            "row": 2,
+            "colSpan": 3,
+            "rowSpan": 1
+          }
+        },
+        {
+          "id": "queue-group",
+          "sourceRefs": [],
+          "tone": "neutral",
+          "type": "group",
+          "label": "Worker A · queue::Inner (shared)",
+          "children": [
+            "lifo-atomic",
+            "run-queue"
+          ]
+        },
+        {
+          "id": "worker-b",
+          "explanation": "Any searching worker. The test's churn task (a 4 ms sleep loop) keeps workers waking up so one of them goes searching.",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/tests/rt_threaded.rs",
+              "startLine": 733,
+              "endLine": 743,
+              "revision": "head"
+            }
+          ],
+          "tone": "neutral",
+          "type": "component",
+          "label": "Worker B",
+          "sublabel": "steal_work()",
+          "layout": {
+            "col": 5,
+            "row": 5,
+            "colSpan": 3,
+            "rowSpan": 1
+          }
+        },
+        {
+          "id": "victim",
+          "explanation": "The task that was woken into A's LIFO slot. Before this PR it would wait until the blocker yielded.",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/tests/rt_threaded.rs",
+              "startLine": 745,
+              "endLine": 751,
+              "revision": "head"
+            }
+          ],
+          "tone": "added",
+          "type": "component",
+          "label": "Victim task",
+          "sublabel": "notify_rx.await",
+          "layout": {
+            "col": 10,
+            "row": 5,
+            "colSpan": 3,
+            "rowSpan": 1
+          }
+        },
+        {
+          "id": "e-notify",
+          "sourceRefs": [],
+          "tone": "neutral",
+          "type": "edge",
+          "from": "blocker",
+          "to": "lifo-atomic",
+          "label": "1 notify",
+          "style": "solid",
+          "arrow": "end"
+        },
+        {
+          "id": "e-steal-queue",
+          "sourceRefs": [],
+          "tone": "muted",
+          "type": "edge",
+          "from": "worker-b",
+          "to": "run-queue",
+          "label": "2 n == 0",
+          "style": "dashed",
+          "arrow": "end"
+        },
+        {
+          "id": "e-steal-lifo",
+          "sourceRefs": [],
+          "tone": "added",
+          "type": "edge",
+          "from": "worker-b",
+          "to": "lifo-atomic",
+          "label": "3 take",
+          "style": "solid",
+          "arrow": "end"
+        },
+        {
+          "id": "e-run",
+          "sourceRefs": [],
+          "tone": "added",
+          "type": "edge",
+          "from": "worker-b",
+          "to": "victim",
+          "label": "4 poll",
+          "style": "solid",
+          "arrow": "end"
+        },
+        {
+          "id": "takeaway",
+          "sourceRefs": [
+            {
+              "kind": "url",
+              "url": "https://github.com/tokio-rs/tokio/pull/7431",
+              "quote": "I've confirmed that this test fails on `master` and passes on this branch."
+            }
+          ],
+          "tone": "neutral",
+          "type": "label",
+          "text": "The author reports this test fails on master and passes with the PR.",
+          "size": "md",
+          "align": "center",
+          "layout": {
+            "col": 2,
+            "row": 7,
+            "colSpan": 10,
+            "rowSpan": 1
+          }
+        }
+      ],
+      "timeline": [
+        {
+          "action": "appear",
+          "atMs": 0,
+          "target": "lifo-atomic"
+        },
+        {
+          "action": "appear",
+          "atMs": 0,
+          "target": "run-queue"
+        },
+        {
+          "action": "appear",
+          "atMs": 3000,
+          "target": "blocker"
+        },
+        {
+          "action": "connect",
+          "atMs": 3500,
+          "target": "e-notify"
+        },
+        {
+          "action": "highlight",
+          "atMs": 4500,
+          "target": "lifo-atomic"
+        },
+        {
+          "action": "appear",
+          "atMs": 8000,
+          "target": "worker-b"
+        },
+        {
+          "action": "connect",
+          "atMs": 8500,
+          "target": "e-steal-queue"
+        },
+        {
+          "action": "connect",
+          "atMs": 12500,
+          "target": "e-steal-lifo"
+        },
+        {
+          "action": "appear",
+          "atMs": 16500,
+          "target": "victim"
+        },
+        {
+          "action": "connect",
+          "atMs": 16800,
+          "target": "e-run"
+        },
+        {
+          "action": "appear",
+          "atMs": 18500,
+          "target": "takeaway"
+        }
+      ],
+      "claims": [
+        {
+          "text": "lifo_stealable runs 4 workers, wakes the victim from the blocker, then blocks that worker on a std channel.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "code",
+              "path": "tokio/tests/rt_threaded.rs",
+              "startLine": 723,
+              "endLine": 777,
+              "revision": "head"
+            }
+          ]
+        },
+        {
+          "text": "The test asserts the victim completes within a 30-second timeout.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "code",
+              "path": "tokio/tests/rt_threaded.rs",
+              "startLine": 788,
+              "endLine": 797,
+              "revision": "head"
+            }
+          ]
+        },
+        {
+          "text": "The author says the test fails on master and passes on the branch.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "url",
+              "url": "https://github.com/tokio-rs/tokio/pull/7431",
+              "quote": "I've confirmed that this test fails on `master` and passes on this branch."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "impact",
+      "title": "Impact, open questions and where to review",
+      "kicker": "Impact",
+      "durationMs": 22000,
+      "narration": "Pushing into the LIFO slot now always wakes a parked worker. The cell uses SeqCst for a reason nobody pinned down, and queue length now counts the slot. Start review at steal_into.",
+      "cues": [
+        {
+          "atMs": 0,
+          "text": "Because the slot is now stealable, schedule_local wakes a parked worker on every local schedule."
+        },
+        {
+          "atMs": 6000,
+          "text": "SeqCst on the cell fixed an ARM + parking_lot test; the author could not say why it is needed."
+        },
+        {
+          "atMs": 11000,
+          "text": "Queue len() now counts an occupied LIFO slot, which shifts worker metrics and needed a test fix."
+        },
+        {
+          "atMs": 16000,
+          "text": "Review first: steal_into, AtomicNotified, and schedule_local."
+        }
+      ],
+      "entities": [
+        {
+          "id": "diff-notify",
+          "explanation": "Before, should_notify was false when the task went into an empty LIFO slot, because no one else could run it. Review asked for the flag to go now that the slot is stealable (commit aff05a9).",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/worker.rs",
+              "startLine": 1331,
+              "endLine": 1333,
+              "revision": "base"
+            },
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/worker.rs",
+              "startLine": 1317,
+              "endLine": 1319,
+              "revision": "head"
+            }
+          ],
+          "tone": "neutral",
+          "type": "diff-panel",
+          "label": "worker.rs · Handle::schedule_local",
+          "language": "rust",
+          "before": "if should_notify && core.park.is_some() {\n    self.notify_parked_local();\n}",
+          "after": "if core.park.is_some() {\n    self.notify_parked_local();\n}",
+          "layout": {
+            "col": 1,
+            "row": 1,
+            "colSpan": 12,
+            "rowSpan": 2
+          }
+        },
+        {
+          "id": "risk-notify",
+          "explanation": "Ping-pong message passing used to keep the wake-up local. Whether the extra notifications cost anything measurable is not shown in the PR: a reviewer asked for benchmarks and the thread does not record results.",
+          "sourceRefs": [
+            {
+              "kind": "url",
+              "url": "https://github.com/tokio-rs/tokio/pull/7431#discussion_r2184724657",
+              "quote": "Since the lifo slot is now stealable, it should no longer be false in this scenario."
+            }
+          ],
+          "tone": "warning",
+          "type": "component",
+          "label": "More sibling wake-ups",
+          "sublabel": "notify_parked_local()",
+          "layout": {
+            "col": 1,
+            "row": 4,
+            "colSpan": 4,
+            "rowSpan": 2
+          }
+        },
+        {
+          "id": "risk-seqcst",
+          "explanation": "With AcqRel, rt_unstable_metrics::worker_local_schedule_count failed on aarch64 Windows with parking_lot. SeqCst made it pass. A maintainer suggested the count changes because a stolen inner task can finish before the outer task yields.",
+          "sourceRefs": [
+            {
+              "kind": "url",
+              "url": "https://github.com/tokio-rs/tokio/pull/7431#issuecomment-4048326134",
+              "quote": "ordering in 3a6043d7adadf7103cb459efeb9cc7039306ffac fixes this test"
+            },
+            {
+              "kind": "url",
+              "url": "https://github.com/tokio-rs/tokio/pull/7431#issuecomment-4055836752",
+              "quote": "But now the LIFO slot can be stolen, so the inner task may complete before the outer task yields, eliminating a yield (and hence schedule) in outer task."
+            },
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/task/atomic_notified.rs",
+              "startLine": 28,
+              "endLine": 47,
+              "revision": "head"
+            }
+          ],
+          "tone": "warning",
+          "type": "component",
+          "label": "SeqCst, reason unknown",
+          "sublabel": "AtomicNotified::swap",
+          "layout": {
+            "col": 5,
+            "row": 4,
+            "colSpan": 4,
+            "rowSpan": 2
+          }
+        },
+        {
+          "id": "risk-len",
+          "explanation": "Both queue handles add one when the LIFO slot is occupied, so worker queue-depth metrics now include it. worker_local_queue_depth awaits its no-op task so it cannot sit in the slot and skew the count.",
+          "sourceRefs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+              "startLine": 117,
+              "endLine": 123,
+              "revision": "head"
+            },
+            {
+              "kind": "code",
+              "path": "tokio/tests/rt_unstable_metrics.rs",
+              "startLine": 676,
+              "endLine": 683,
+              "revision": "head"
+            }
+          ],
+          "tone": "neutral",
+          "type": "component",
+          "label": "len() counts the slot",
+          "sublabel": "Local::len · Steal::len",
+          "layout": {
+            "col": 9,
+            "row": 4,
+            "colSpan": 4,
+            "rowSpan": 2
+          }
+        },
+        {
+          "id": "review-first",
+          "sourceRefs": [],
+          "tone": "neutral",
+          "type": "label",
+          "text": "Read first: Steal::steal_into in queue.rs, task/atomic_notified.rs, then Handle::schedule_local in worker.rs.",
+          "size": "md",
+          "align": "center",
+          "layout": {
+            "col": 1,
+            "row": 7,
+            "colSpan": 12,
+            "rowSpan": 1
+          }
+        }
+      ],
+      "timeline": [
+        {
+          "action": "appear",
+          "atMs": 0,
+          "target": "diff-notify"
+        },
+        {
+          "action": "appear",
+          "atMs": 1500,
+          "target": "risk-notify"
+        },
+        {
+          "action": "appear",
+          "atMs": 6000,
+          "target": "risk-seqcst"
+        },
+        {
+          "action": "appear",
+          "atMs": 11000,
+          "target": "risk-len"
+        },
+        {
+          "action": "appear",
+          "atMs": 16000,
+          "target": "review-first"
+        }
+      ],
+      "claims": [
+        {
+          "text": "schedule_local now notifies a parked worker whenever core.park is present.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/worker.rs",
+              "startLine": 1301,
+              "endLine": 1319,
+              "revision": "head"
+            }
+          ]
+        },
+        {
+          "text": "The author reports SeqCst instead of AcqRel fixed a failing ARM parking_lot test, cause not identified.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "url",
+              "url": "https://github.com/tokio-rs/tokio/pull/7431#issuecomment-4048326134",
+              "quote": "ordering in 3a6043d7adadf7103cb459efeb9cc7039306ffac fixes this test"
+            }
+          ]
+        },
+        {
+          "text": "Local::len and Steal::len include the LIFO slot.",
+          "basis": "evidence",
+          "refs": [
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+              "startLine": 117,
+              "endLine": 123,
+              "revision": "head"
+            },
+            {
+              "kind": "code",
+              "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+              "startLine": 417,
+              "endLine": 422,
+              "revision": "head"
+            }
+          ]
+        },
+        {
+          "text": "Extra wake-ups may cost some throughput in message-passing workloads; no benchmark result is recorded in the PR.",
+          "basis": "inference",
+          "refs": []
+        }
+      ]
+    }
+  ]
+}
