@@ -1,0 +1,48 @@
+{
+  "syncedAt": "2026-10-26T22:19:11.845Z",
+  "threads": [
+    {
+      "id": "gh-1",
+      "number": 1,
+      "url": "https://github.com/voidforall/mutoscope-demo/discussions/1",
+      "title": "[Reel] Why only take the LIFO task when the ring buffer gave nothing, instead of always stealing…",
+      "question": "Why only take the LIFO task when the ring buffer gave nothing, instead of always stealing it?",
+      "author": "voidforall",
+      "createdAt": "2026-10-25T11:24:09Z",
+      "status": "answered",
+      "context": {
+        "reelId": "tokio-7431",
+        "reelVersion": 1,
+        "sceneId": "steal-fallback",
+        "timestampMs": 12000,
+        "entityId": "diff-steal",
+        "sourceRefs": [
+          {
+            "kind": "code",
+            "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+            "startLine": 430,
+            "endLine": 435,
+            "revision": "base"
+          },
+          {
+            "kind": "code",
+            "path": "tokio/src/runtime/scheduler/multi_thread/queue.rs",
+            "startLine": 453,
+            "endLine": 464,
+            "revision": "head"
+          }
+        ],
+        "commit": "5db9e75144032911b8051432e6ac3a833a099c52"
+      },
+      "replies": [
+        {
+          "author": "voidforall",
+          "body": "**To keep the LIFO task on the worker that woke it whenever that worker is healthy, while still guaranteeing it gets rescued when the worker is stuck.** Taking it only when the ring buffer yields nothing makes the LIFO slot the *last* thing a stealer touches.\n\n- **The code:** at the head commit, `steal_into` returns the LIFO task only on the `n == 0` path, after `steal_into2` moved nothing from the target's run queue ([queue.rs#L453-L464](https://github.com/tokio-rs/tokio/blob/5db9e75144032911b8051432e6ac3a833a099c52/tokio/src/runtime/scheduler/multi_thread/queue.rs#L453-L464)).\n- **Why it changed:** the PR first stole the LIFO task alongside queue tasks. Darksonn suggested the simpler `n == 0` form in review (`tokio-rs/tokio#7431`, comment `discussion_r2931365812`). hawkw adopted it in [c47b9c8](https://github.com/tokio-rs/tokio/commit/c47b9c87f91303c2494fd5d6778084e57576c679), which explains that it \"makes the LIFO slot less likely to be stolen from, increasing the likelihood that it will be next polled on the same thread it was woken from\". For the stuck-worker case, \"the LIFO task will still be stolen eventually, it just takes a second steal attempt to get there.\"\n- **The cost of waiting:** each steal takes half of the target's queue, so with *n* queued tasks the LIFO task is reached after about log₂(n) steals (Darksonn, later in the same review).\n\n*Inference, not verified:* keeping the woken task on its own worker usually means its data is still in that core's cache, which is the latency win the LIFO slot exists for. Stealing it eagerly would trade that away on every healthy wake-up just to help the rare wedged case.\n\n---\n<sub>AI-assisted answer drafted with mutoscope from the pinned source; reviewed and approved by @voidforall.</sub>",
+          "createdAt": "2026-10-26T22:19:05Z",
+          "url": "https://github.com/voidforall/mutoscope-demo/discussions/1#discussioncomment-19205578",
+          "aiAssisted": true
+        }
+      ]
+    }
+  ]
+}
